@@ -1,10 +1,5 @@
 """
-Full definition of a GPT Language Model, all of it in this single file.
-References:
-1) the official GPT-2 TensorFlow implementation released by OpenAI:
-https://github.com/openai/gpt-2/blob/master/src/model.py
-2) huggingface/transformers PyTorch implementation:
-https://github.com/huggingface/transformers/blob/main/src/transformers/models/gpt2/modeling_gpt2.py
+Modified GPT Language Model for novel character level prediction.
 """
 
 import math
@@ -41,6 +36,12 @@ class CausalSelfAttention(nn.Module):
         self.n_head = config.n_head
         self.n_embd = config.n_embd
         self.dropout = config.dropout
+        self.hybrid = config.hybrid
+        # hybrid self attention
+        if self.hybrid:
+            self.local_window_size = config.local_window_size
+            # self.local_weight = config.local_weight # if fixed parameter, don't update
+            self.local_weight = nn.Parameter(torch.tensor(config.local_weight, dtype=torch.float))
         # flash attention make GPU go brrrrr but support is only in PyTorch >= 2.0
         self.flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention')
         if not self.flash:
@@ -69,8 +70,26 @@ class CausalSelfAttention(nn.Module):
             att = F.softmax(att, dim=-1)
             att = self.attn_dropout(att)
             y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
-        y = y.transpose(1, 2).contiguous().view(B, T, C) # re-assemble all head outputs side by side
 
+        # local attention
+        if self.hybrid:
+            full_range = torch.arange(T)[None, :].to(x.device)  # (1, T)
+            # add None (dim 1) so broadcasting works
+            rel_pos = full_range[:, None, :] - full_range[:, :, None]  # (1,T,1) - (1,1,T) = (1, T, T)
+            local_mask = (rel_pos.abs().le(self.local_window_size) & (rel_pos <= 0)).to(x.dtype) # locality + causality
+            local_mask = local_mask[None, :, :]  # (1,1,T,T) match dims
+
+            # mask over regular attention
+            att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
+            att = att * local_mask - 1e10 * (1 - local_mask)  # large negative for softmax goes to 0
+            att = F.softmax(att, dim=-1)
+            att = self.attn_dropout(att)
+            y_local = att @ v
+            y_local = y_local.squeeze(0)
+            
+            y = (1-self.local_weight) * y + self.local_weight * y_local
+
+        y = y.transpose(1, 2).contiguous().view(B, T, C) # re-assemble all head outputs side by side
         # output projection
         y = self.resid_dropout(self.c_proj(y))
         return y
@@ -114,6 +133,9 @@ class GPTConfig:
     n_embd: int = 768
     dropout: float = 0.0
     bias: bool = True # True: bias in Linears and LayerNorms, like GPT-2. False: a bit better and faster
+    hybrid: bool = False # use hybrid self-attention
+    local_window_size: int = 10 # local window size for hybrid self-attention
+    local_weight: float = 0.5 # weight of local attention
 
 class GPT(nn.Module):
 
