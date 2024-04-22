@@ -26,20 +26,20 @@ $ python sample.py --out_dir=out-enwik8-char-hybrid
 
 This generates a few samples, for example:
 
-```
-A band named &quot;Esperanto masculini&quot; (see also [[Masculine wars]]) shares the [[extreme perfection of language]], i.e. the [[synonym]] of &quot;Esperanto masculini&quot; (see ''[[Esperanto masculini]]''.)  Both sides are used in different ways such as [[Elementary masculini]] (see [[Esperanto masculini]]) and [[Esperanto masculini]] (see [[List of esperanto masculini]]). In the United States, Esperanto masculini is also used in masculini large parts of [[Africa]].
-```
+"""
+A band named &quot;Esperanto masculini&quot; (see also [[Masculine wars]]) shares the [[extreme perfection of language]], i.e. the [[synonym]] of &quot;Esperanto masculini&quot; (see ''[[Esperanto masculini]]''.) Both sides are used in different ways such as [[Elementary masculini]] (see [[Esperanto masculini]]) and [[Esperanto masculini]] (see [[List of esperanto masculini]]). In the United States, Esperanto masculini is also used in masculini large parts of [[Africa]].
+"""
 
-## baselines
+## performance comparisons
 
 ```
 $ python test.py --out_dir=out-enwik8-char-small
 $ python test.py --out_dir=out-enwik8-char-hybrid
 ```
 
-and observe the following losses on test:
+Running for 100000 training steps, we observe the following losses on test:
 
 | model            | params | test loss |
 | ---------------- | ------ | --------- |
-| small (baseline) | 12.95M |           |
-| hybrid           | 12.95M |           |
+| small (baseline) | 12.95M | 1.3056    |
+| hybrid           | 12.95M | 1.2893    |
