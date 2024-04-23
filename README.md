@@ -1,4 +1,4 @@
-# nanoGPT-enwik8
+# charGPT
 
 Modified [nanoGPT](https://github.com/karpathy/nanoGPT) for enwik8 character level transformer.
 
